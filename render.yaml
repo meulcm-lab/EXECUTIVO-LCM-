@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: executivo-lcm-auditoria
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: CVCRM_DOMINIO
+        sync: false
+      - key: CVCRM_EMAIL
+        sync: false
+      - key: CVCRM_TOKEN
+        sync: false
+      - key: AUDIT_USER
+        sync: false
+      - key: AUDIT_PASSWORD
+        sync: false
+      - key: CVCRM_CACHE_TTL
+        value: "600"
+      - key: CVCRM_ENDPOINT_CONDICOES
+        value: /api/v1/comercial/reservas/condicao-pagamentos
+      - key: CVCRM_ENDPOINT_VENDAS
+        value: /api/v1/cvdw/reservas
+      - key: CVCRM_ENDPOINT_UNIDADES
+        value: /api/v1/cvdw/unidades
