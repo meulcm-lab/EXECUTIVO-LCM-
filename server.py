@@ -372,6 +372,20 @@ def build_rows(units: list[dict], sales: list[dict], include_conditions: bool, e
             if block:
                 sale_by_name_block.setdefault((key[0], compact(block), key[1]), []).append(sale)
 
+    # Conta quantas unidades do inventário compartilham o mesmo nome dentro
+    # de cada empreendimento. O fallback por nome só pode ser usado quando
+    # o nome identifica uma única unidade; assim uma venda do apto 301 não é
+    # replicada para o apto 301 de vários blocos.
+    inventory_name_counts: dict[tuple[str, str], int] = {}
+    for inventory_unit in units:
+        inventory_emp = project_name(inventory_unit)
+        inventory_name = clean(pick(inventory_unit, ["nome", "unidade", "nome_unidade", "apartamento", "numero_unidade", "codigo_unidade"], ""))
+        if isinstance(inventory_name, dict):
+            inventory_name = clean(pick(inventory_name, ["nome", "unidade", "apartamento", "numero", "codigo", "id"], ""))
+        if inventory_name:
+            inventory_key = (compact(inventory_emp), compact(inventory_name))
+            inventory_name_counts[inventory_key] = inventory_name_counts.get(inventory_key, 0) + 1
+
     candidates = []
     seen_unit_keys: set[str] = set()
     for unit in units:
@@ -401,7 +415,9 @@ def build_rows(units: list[dict], sales: list[dict], include_conditions: bool, e
             block_matches = sale_by_name_block.get((key[0], compact(block), key[1]), []) if block else []
             if block_matches:
                 matches = block_matches
-            elif len(name_matches) == 1:
+            elif inventory_name_counts.get(key, 0) == 1 and len(name_matches) == 1:
+                # Sem bloco na reserva, só associa pelo número da unidade
+                # quando esse número é exclusivo no empreendimento.
                 matches = name_matches
 
         sold_matches = [sale for sale in matches if is_sold(status_text(sale))]
