@@ -247,6 +247,40 @@ def payment_summary(row: dict) -> dict:
     }
 
 
+def series_description(row: dict) -> str:
+    raw = row.get("condicao", [])
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            raw = []
+    if not raw:
+        conditions = row.get("condicoes", {})
+        if isinstance(conditions, str):
+            try:
+                conditions = json.loads(conditions)
+            except Exception:
+                conditions = {}
+        raw = conditions.get("series", row.get("series", row.get("plano_pagamento", []))) if isinstance(conditions, dict) else []
+    if isinstance(raw, dict):
+        raw = list(raw.values())
+    if not isinstance(raw, list):
+        return ""
+    descriptions = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        label = clean(pick(item, ["serie", "nome", "descricao", "nome_serie", "tipo"], ""))
+        amount = series_amount(item)
+        quantity = pick(item, ["quantidade", "qtd", "numero_parcelas", "numero_parcelas_total"], "")
+        if label:
+            detail = f"{label}: {amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            if quantity not in (None, "") and number(quantity) > 1:
+                detail += f" ({clean(quantity)} parcelas)"
+            descriptions.append(detail)
+    return " | ".join(descriptions)
+
+
 def fetch_conditions(reservation_id: str, endpoint: str, email: str, token: str) -> list[dict]:
     payload = cvcrm_get(endpoint, email, token, {"idreserva": reservation_id, "pagina": 1, "registros_por_pagina": 500}, timeout=18)
     data = payload.get("dados", []) if isinstance(payload, dict) else []
@@ -326,6 +360,8 @@ def build_rows(units: list[dict], sales: list[dict], include_conditions: bool, e
         reservation_id = clean(pick(sale, ["idreserva_cv", "idreserva", "id_reserva", "idproposta_cv", "idproposta", "id"], ""))
         candidates.append({
             "Cliente": client, "Empreendimento": emp or project_name(sale), "Imobiliária": agency,
+            "Data da Venda": clean(pick(sale, ["data_venda", "datavenda", "data_da_venda", "data_contrato", "data_assinatura", "dataassinatura", "data_reserva", "datareserva", "created_at", "createdAt", "data_criacao", "datacriacao"], "")),
+            "Séries": series_description(sale),
             "Bloco": clean(pick(unit, ["bloco", "nome_bloco", "bloco_nome"], "")),
             "Unidade": uname or uid, "M²": number(pick(unit, ["area_privativa", "m2", "area", "area_util"], 0)),
             "Etapa": clean(pick(unit, ["etapa", "nome_etapa"], "")) or clean(pick(sale, ["etapa", "status_reserva", "situacao_reserva", "situacao", "status"], "")),
@@ -354,6 +390,7 @@ def build_rows(units: list[dict], sales: list[dict], include_conditions: bool, e
                     item, series = future.result()
                     if series:
                         new = enrich_with_conditions(item, series)
+                        item["Séries"] = series_description({"condicao": series}) or item.get("Séries", "")
                         for key in ["FGTS", "Subsídio", "Financiamento", "Total Financiado", "AdPremiada", "Ch_Moradia", "Pró-Soluto", "Risco", "Valor Líquido"]:
                             item[key] = new.get(key, item.get(key))
                         item["_has_conditions"] = True
