@@ -32,10 +32,16 @@
 
 &lt;div class=&quot;audit-head&quot;&gt;&lt;div class=&quot;section&quot;&gt;Auditoria das unidades&lt;/div&gt;&lt;span class=&quot;badge&quot; style=&quot;background:#e8f1fb;color:#203b67&quot;&gt;AUDITORIA COMERCIAL&lt;/span&gt;&lt;/div&gt;
 &lt;div class=&quot;panel&quot; style=&quot;margin-bottom:20px;padding:16px&quot;&gt;
+  &lt;div class=&quot;audit-upload&quot; style=&quot;align-items:flex-end&quot;&gt;
+    &lt;label class=&quot;audit-control&quot; style=&quot;max-width:190px&quot;&gt;Usuário de acesso&lt;input id=&quot;auditApiUser&quot; type=&quot;text&quot; autocomplete=&quot;username&quot; placeholder=&quot;Usuário configurado no servidor&quot;&gt;&lt;/label&gt;
+    &lt;label class=&quot;audit-control&quot; style=&quot;max-width:190px&quot;&gt;Senha de acesso&lt;input id=&quot;auditApiPassword&quot; type=&quot;password&quot; autocomplete=&quot;current-password&quot; placeholder=&quot;Senha configurada no servidor&quot;&gt;&lt;/label&gt;
+    &lt;button class=&quot;audit-btn&quot; id=&quot;auditApiLoad&quot; type=&quot;button&quot;&gt;Conectar / Atualizar CV CRM&lt;/button&gt;
+    &lt;button class=&quot;audit-btn secondary&quot; id=&quot;auditApiDetails&quot; type=&quot;button&quot;&gt;Completar dados financeiros&lt;/button&gt;
+    &lt;span class=&quot;audit-status&quot; id=&quot;auditFileStatus&quot;&gt;A conexão segura com o CV CRM será feita pelo servidor. Configure o acesso e as credenciais da API no Render; não coloque o token aqui.&lt;/span&gt;
+  &lt;/div&gt;
   &lt;div class=&quot;audit-upload&quot;&gt;
-    &lt;label for=&quot;auditFile&quot;&gt;Carregar planilha da auditoria (Excel ou CSV)&lt;/label&gt;
+    &lt;label for=&quot;auditFile&quot;&gt;Alternativa: carregar planilha Excel ou CSV&lt;/label&gt;
     &lt;input id=&quot;auditFile&quot; type=&quot;file&quot; accept=&quot;.xlsx,.xls,.csv&quot;&gt;
-    &lt;span class=&quot;audit-status&quot; id=&quot;auditFileStatus&quot;&gt;Envie a planilha de unidades para preencher a auditoria. Os gráficos e o estoque atual serão mantidos.&lt;/span&gt;
   &lt;/div&gt;
   &lt;div class=&quot;audit-toolbar&quot;&gt;
     &lt;label class=&quot;audit-control&quot;&gt;Pesquisar cliente, imobiliária, bloco ou unidade&lt;input id=&quot;auditSearch&quot; type=&quot;search&quot; placeholder=&quot;Digite para pesquisar...&quot;&gt;&lt;/label&gt;
@@ -96,6 +102,32 @@ const vals=summaryCols.map(c=&gt;{if(['Cliente','Empreendimento','Imobiliária']
 function auditExportCsv(){const rows=auditFiltered();if(!rows.length){alert('Não há unidades para exportar.');return}const csv=[AUDIT_COLUMNS.join(';'),...rows.map(r=&gt;AUDIT_COLUMNS.map(c=&gt;'&quot;'+auditText(r[c]).replace(/&quot;/g,'&quot;&quot;')+'&quot;').join(';'))].join('\r\n');const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='auditoria_unidades.csv';a.click();URL.revokeObjectURL(url)}
 document.getElementById('auditFile').addEventListener('change',async e=&gt;{const file=e.target.files&amp;&amp;e.target.files[0];if(!file)return;try{if(typeof XLSX==='undefined')throw new Error('O leitor de Excel não carregou. Verifique a conexão com a internet e tente novamente.');const buffer=await file.arrayBuffer();const workbook=XLSX.read(buffer,{type:'array',cellDates:false});const sheet=workbook.Sheets[workbook.SheetNames[0]];const raw=XLSX.utils.sheet_to_json(sheet,{defval:'',raw:true});if(!raw.length)throw new Error('A primeira aba da planilha está vazia.');auditData=raw.map(auditMapRow).filter(r=&gt;AUDIT_COLUMNS.some(c=&gt;auditText(r[c])!==''));if(!auditData.length)throw new Error('Não encontrei registros com as colunas esperadas. Confira se a primeira linha contém os cabeçalhos.');document.getElementById('auditFileStatus').textContent=file.name+' — '+auditData.length.toLocaleString('pt-BR')+' registros carregados.';auditFillSelect('auditProject',auditUnique('Empreendimento'),'Todos os empreendimentos');auditFillSelect('auditAgency',auditUnique('Imobiliária'),'Todas as imobiliárias');auditFillSelect('auditBlock',auditUnique('Bloco'),'Todos os blocos');auditRender()}catch(err){document.getElementById('auditFileStatus').textContent='Não foi possível ler a planilha: '+err.message;alert('Auditoria: '+err.message)}})
 document.getElementById('auditSearch').addEventListener('input',auditRender);['auditProject','auditAgency','auditBlock'].forEach(id=&gt;document.getElementById(id).addEventListener('change',auditRender));document.getElementById('auditClear').addEventListener('click',()=&gt;{document.getElementById('auditSearch').value='';['auditProject','auditAgency','auditBlock'].forEach(id=&gt;document.getElementById(id).value='__all');auditRender()});document.getElementById('auditExport').addEventListener('click',auditExportCsv);auditRender();
+
+async function auditLoadApi(includeConditions=false,refresh=false){
+ const user=document.getElementById('auditApiUser').value.trim();
+ const pass=document.getElementById('auditApiPassword').value;
+ const status=document.getElementById('auditFileStatus');
+ if(!user||!pass){status.textContent='Informe o usuário e a senha de acesso configurados no servidor Render.';return}
+ const buttons=['auditApiLoad','auditApiDetails'];buttons.forEach(id=&gt;document.getElementById(id).disabled=true);
+ status.textContent=includeConditions?'Consultando condições financeiras detalhadas no CV CRM. Isso pode levar alguns minutos...':'Conectando ao CV CRM e carregando unidades e reservas...';
+ try{
+  const auth=btoa(unescape(encodeURIComponent(user+':'+pass)));
+  const response=await fetch('/api/auditoria?include_conditions='+String(includeConditions)+'&amp;refresh='+String(refresh),{headers:{'Authorization':'Basic '+auth,'Accept':'application/json'}});
+  const payload=await response.json().catch(()=&gt;({}));
+  if(!response.ok){if(response.status===401)throw new Error('Usuário ou senha de acesso incorretos.');throw new Error(payload.detail||('Erro HTTP '+response.status))}
+  if(!Array.isArray(payload.rows))throw new Error('A API não retornou uma lista de unidades.');
+  auditData=payload.rows.map(auditMapRow);
+  auditFillSelect('auditProject',auditUnique('Empreendimento'),'Todos os empreendimentos');
+  auditFillSelect('auditAgency',auditUnique('Imobiliária'),'Todas as imobiliárias');
+  auditFillSelect('auditBlock',auditUnique('Bloco'),'Todos os blocos');
+  auditRender();
+  const when=payload.updated_at?new Date(payload.updated_at).toLocaleString('pt-BR'):'agora';
+  status.textContent='CV CRM conectado · '+auditData.length.toLocaleString('pt-BR')+' unidades vendidas · Atualizado em '+when+(includeConditions?' · consulta financeira detalhada concluída':' · dados básicos carregados');
+ }catch(err){status.textContent='Não foi possível carregar do CV CRM: '+err.message}
+ finally{buttons.forEach(id=&gt;document.getElementById(id).disabled=false)}
+}
+document.getElementById('auditApiLoad').addEventListener('click',()=&gt;auditLoadApi(false,true));
+document.getElementById('auditApiDetails').addEventListener('click',()=&gt;auditLoadApi(true,true));
 function render(){let p=sel.value,di=document.getElementById('dataInicio').value,df=document.getElementById('dataFim').value;let d=DATA.filter(x=&gt;(p==='__all'||x.empreendimento===p)&amp;&amp;/vendid/i.test(x.situacao)&amp;&amp;(!di||!!x.data&amp;&amp;x.data&gt;=di)&amp;&amp;(!df||!!x.data&amp;&amp;x.data&lt;=df));let vgv=d.reduce((a,x)=&gt;a+(x.venda||0),0);let months={};d.forEach(x=&gt;{if(x.data){let m=x.data.slice(0,7);months[m]=(months[m]||0)+1}});let mkeys=Object.keys(months).sort();let avg=mkeys.length?d.length/mkeys.length:0;document.getElementById('vgv').textContent=fmtBRL(vgv);document.getElementById('unidades').textContent=fmtInt(d.length);document.getElementById('media').textContent=avg.toLocaleString('pt-BR',{maximumFractionDigits:1})+' un.';const isLagoas=/VILLAGE LAGOAS/i.test(p);document.getElementById('vso').textContent=(isLagoas?'R$ 10.364.588,43':'—');document.getElementById('proSolutoRecebido').textContent=(isLagoas?'R$ 5.032.191,50':'—');
 if(c1)c1.destroy();c1=new Chart(document.getElementById('monthly'),{type:'bar',data:{labels:mkeys.map(m=&gt;{let [y,mm]=m.split('-');return mm+'/'+y.slice(2)}),datasets:[{label:'Unidades vendidas',data:mkeys.map(k=&gt;months[k]),backgroundColor:'#367db3',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0},grace:'12%'},x:{ticks:{maxRotation:55,minRotation:35}}},layout:{padding:{top:18}}},plugins:[{id:'monthlyBarLabels',afterDatasetsDraw(chart){const ctx=chart.ctx;ctx.save();ctx.fillStyle='#203b67';ctx.font='bold 10px Segoe UI,Arial';ctx.textAlign='center';ctx.textBaseline='bottom';chart.getDatasetMeta(0).data.forEach((bar,i)=&gt;{const v=chart.data.datasets[0].data[i];if(bar&amp;&amp;v&gt;0)ctx.fillText(v,bar.x,bar.y-4)});ctx.restore();}}]});
 if(c2)c2.destroy();let totalMeses=mkeys.reduce((a,k)=&gt;a+months[k],0),pctMensal=mkeys.map(k=&gt;totalMeses?months[k]/totalMeses*100:0),somaPct=0,pctAcumulado=pctMensal.map(v=&gt;{somaPct+=v;return somaPct});c2=new Chart(document.getElementById('vsoChart'),{type:'bar',data:{labels:mkeys.map(m=&gt;{let [y,mm]=m.split('-');return mm+'/'+y.slice(2)}),datasets:[{type:'bar',label:'% mensal das vendas',data:pctMensal,backgroundColor:'#367db3',borderRadius:2,yAxisID:'y'},{type:'line',label:'% acumulado',data:pctAcumulado,borderColor:'#c66520',backgroundColor:'#c66520',pointRadius:2,pointHoverRadius:4,tension:.15,yAxisID:'y1'}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:true,position:'bottom'}},scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=&gt;v+'%'},title:{display:true,text:'% mensal'}},y1:{position:'right',beginAtZero:true,max:100,ticks:{callback:v=&gt;v+'%'},grid:{drawOnChartArea:false},title:{display:true,text:'% acumulado'}},x:{ticks:{maxRotation:55,minRotation:35}}}}});
