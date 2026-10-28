@@ -186,10 +186,35 @@ def status_text(row: dict) -> str:
 
 
 def is_sold(value: str) -> bool:
-    return any(term in value for term in [
-        "VENDID", "CONTRATO ASSINADO", "ENVIADO PARA UAU", "BOLETO/PIX", "BOLETO PIX",
-        "AGUARDANDO ASSINATURA INTERNA", "CONTRATO ASSINADO POR TODOS", "FATURAD", "PODE FATURAR"
+    # Classificação comercial acordada: todos estes estágios contam como VENDA.
+    status = norm(value).strip()
+    return any(term in status for term in [
+        "VENDID", "CONTRATO ASSINADO", "ASSINADO POR CLIENTES E ASSOCIADOS",
+        "CONTRATO ASSINADO CLIENTE", "ENVIADO PARA UAU", "BOLETO/PIX", "BOLETO PIX",
+        "AGUARDANDO ASSINATURA INTERNA", "FATURAD", "PODE FATURAR"
     ])
+
+
+SERIES_IDS = {
+    "40": "Valor Subsídio Municipal", "39": "Valor Terreno/Prefeitura",
+    "38": "Entrada 02", "37": "Cheque Moradia", "36": "Adimplência Premiada",
+    "35": "Parcela 1", "34": "Parcela 2", "29": "Semestral", "22": "Entrada",
+    "19": "Chave", "12": "Subsídio", "11": "FGTS", "8": "Anual", "3": "Financiamento",
+}
+
+
+def series_label(item: dict) -> str:
+    sid = clean(pick(item, ["idserie", "id_serie", "idserie_cv"], ""))
+    sid_internal = clean(pick(item, ["idserie_int", "id"], ""))
+    raw_name = clean(pick(item, ["serie", "nome_serie", "serie_nome", "nome", "descricao_serie", "descricao", "titulo", "tipo"], ""))
+    catalog_name = SERIES_IDS.get(sid) or SERIES_IDS.get(sid_internal)
+    if catalog_name and (not raw_name or norm(raw_name) in {"SERIE", "SERIE SEM NOME", sid, sid_internal}):
+        return catalog_name
+    if raw_name:
+        return raw_name
+    if sid or sid_internal:
+        return catalog_name or f"Série {sid or sid_internal}"
+    return "Série sem nome"
 
 
 def series_amount(item: dict) -> float:
@@ -225,7 +250,7 @@ def payment_summary(row: dict) -> dict:
     for item in raw:
         if not isinstance(item, dict):
             continue
-        label = norm(pick(item, ["serie", "nome", "descricao", "nome_serie", "tipo"], ""))
+        label = norm(series_label(item))
         amounts[label] = amounts.get(label, 0.0) + series_amount(item)
 
     def amount_for(*names: str) -> float:
@@ -270,7 +295,7 @@ def series_description(row: dict) -> str:
     for item in raw:
         if not isinstance(item, dict):
             continue
-        label = clean(pick(item, ["serie", "nome", "descricao", "nome_serie", "tipo"], ""))
+        label = series_label(item)
         amount = series_amount(item)
         quantity = pick(item, ["quantidade", "qtd", "numero_parcelas", "numero_parcelas_total"], "")
         if label:
@@ -315,34 +340,74 @@ def enrich_with_conditions(row: dict, series: list[dict]) -> dict:
 
 def build_rows(units: list[dict], sales: list[dict], include_conditions: bool, email: str, token: str) -> list[dict]:
     sale_by_unit: dict[str, list[dict]] = {}
+    sale_by_name: dict[tuple[str, str], list[dict]] = {}
+    sale_by_name_block: dict[tuple[str, str, str], list[dict]] = {}
+
+    def block_name(row: dict) -> str:
+        value = pick(row, ["bloco", "nome_bloco", "bloco_nome", "numero_bloco", "bloco_numero"], "")
+        if isinstance(value, dict):
+            value = pick(value, ["nome", "descricao", "numero", "codigo"], "")
+        if not value and isinstance(row.get("unidade"), dict):
+            value = pick(row["unidade"], ["bloco", "nome_bloco", "bloco_nome", "numero_bloco"], "")
+            if isinstance(value, dict):
+                value = pick(value, ["nome", "descricao", "numero", "codigo"], "")
+        return clean(value)
+
+    def unit_name(row: dict) -> str:
+        value = pick(row, ["nome_unidade", "unidade", "apartamento", "numero_unidade", "codigo_unidade", "nome"], "")
+        if isinstance(value, dict):
+            value = pick(value, ["nome", "unidade", "apartamento", "numero", "codigo", "id"], "")
+        return clean(value)
+
     for sale in sales:
         uid = unit_id(sale)
         if uid:
             sale_by_unit.setdefault(uid, []).append(sale)
-
-    # Se o ID da unidade não existir no payload da reserva, tenta número + empreendimento.
-    sale_by_name: dict[tuple[str, str], list[dict]] = {}
-    for sale in sales:
-        uname = clean(pick(sale, ["nome_unidade", "unidade", "apartamento", "numero_unidade", "nome"], ""))
+        uname = unit_name(sale)
         emp = project_name(sale)
         if uname:
-            sale_by_name.setdefault((compact(emp), compact(uname)), []).append(sale)
+            key = (compact(emp), compact(uname))
+            sale_by_name.setdefault(key, []).append(sale)
+            block = block_name(sale)
+            if block:
+                sale_by_name_block.setdefault((key[0], compact(block), key[1]), []).append(sale)
 
     candidates = []
+    seen_unit_keys: set[str] = set()
     for unit in units:
         uid = unit_id(unit)
         emp = project_name(unit)
         uname = clean(pick(unit, ["nome", "unidade", "nome_unidade", "apartamento", "numero_unidade", "codigo_unidade"], ""))
         unit_status = status_text(unit)
+        block = block_name(unit)
+        # Um registro de inventário por unidade; evita duplicação técnica do endpoint.
+        unique_unit_key = compact(emp) + "|" + (uid or compact(block) + "|" + compact(uname))
+        if unique_unit_key in seen_unit_keys:
+            continue
+        seen_unit_keys.add(unique_unit_key)
+
         matches = sale_by_unit.get(uid, []) if uid else []
         if emp and matches:
-            project_matches = [s for s in matches if not project_name(s) or compact(project_name(s)) == compact(emp)]
+            project_matches = [sale for sale in matches if not project_name(sale) or compact(project_name(sale)) == compact(emp)]
             if project_matches:
                 matches = project_matches
+
+        # Fallback por nome só é permitido se for inequívoco. Se houver bloco no
+        # registro de venda, o bloco precisa coincidir; nunca copiar um cliente
+        # para apartamentos de mesmo número em blocos diferentes.
         if not matches and uname:
-            matches = sale_by_name.get((compact(emp), compact(uname)), [])
-        matches = [s for s in matches if is_sold(status_text(s))] or matches
-        sale = matches[-1] if matches else {}
+            key = (compact(emp), compact(uname))
+            name_matches = sale_by_name.get(key, [])
+            block_matches = sale_by_name_block.get((key[0], compact(block), key[1]), []) if block else []
+            if block_matches:
+                matches = block_matches
+            elif len(name_matches) == 1:
+                matches = name_matches
+
+        sold_matches = [sale for sale in matches if is_sold(status_text(sale))]
+        if sold_matches:
+            matches = sold_matches
+        sale = matches[-1] if len(matches) == 1 else (matches[-1] if matches and uid else {})
         sale_status = status_text(sale) if sale else ""
         if not (is_sold(unit_status) or is_sold(sale_status)):
             continue
@@ -357,13 +422,12 @@ def build_rows(units: list[dict], sales: list[dict], include_conditions: bool, e
         renda = number(pick(sale, ["renda", "renda_familiar"], pick(titular, ["renda_familiar", "renda"], 0)))
         contract = number(pick(sale, ["valor_venda", "valor_contrato", "valor_total", "vgv", "valor"], pick(unit, ["valor_vgv", "vgv", "valor_unidade", "valor_venda", "valor_tabela", "valor"], 0)))
         pay = payment_summary(sale)
-        reservation_id = clean(pick(sale, ["idreserva_cv", "idreserva", "id_reserva", "idproposta_cv", "idproposta", "id"], ""))
+        reservation_id = clean(pick(sale, ["idproposta_cv", "idreserva_cv", "idreserva", "id_reserva", "idproposta", "id"], ""))
+        sale_date = clean(pick(sale, ["data_venda", "datavenda", "data_da_venda", "data_contrato", "data_assinatura", "dataassinatura", "data_reserva", "datareserva", "created_at", "createdAt", "data_criacao", "datacriacao"], ""))
         candidates.append({
             "Cliente": client, "Empreendimento": emp or project_name(sale), "Imobiliária": agency,
-            "Data da Venda": clean(pick(sale, ["data_venda", "datavenda", "data_da_venda", "data_contrato", "data_assinatura", "dataassinatura", "data_reserva", "datareserva", "created_at", "createdAt", "data_criacao", "datacriacao"], "")),
-            "Séries": series_description(sale),
-            "Bloco": clean(pick(unit, ["bloco", "nome_bloco", "bloco_nome"], "")),
-            "Unidade": uname or uid, "M²": number(pick(unit, ["area_privativa", "m2", "area", "area_util"], 0)),
+            "Data da Venda": sale_date, "Séries": series_description(sale),
+            "Bloco": block, "Unidade": uname or uid, "M²": number(pick(unit, ["area_privativa", "m2", "area", "area_util"], 0)),
             "Etapa": clean(pick(unit, ["etapa", "nome_etapa"], "")) or clean(pick(sale, ["etapa", "status_reserva", "situacao_reserva", "situacao", "status"], "")),
             "Renda Familiar": renda, "Valor Total": contract,
             "Valor Líquido": contract - pay["AdPremiada"] - pay["Ch_Moradia"],
@@ -377,13 +441,18 @@ def build_rows(units: list[dict], sales: list[dict], include_conditions: bool, e
 
     if include_conditions:
         endpoint = os.getenv("CVCRM_ENDPOINT_CONDICOES", DEFAULT_CONDITIONS_ENDPOINT).strip()
-        targets = [r for r in candidates if r.get("_reservation_id") and not r.get("_has_conditions")]
-        # Evita disparar uma avalanche de requisições no primeiro carregamento.
-        # O limite é explícito; o botão de atualizar pode ser usado novamente depois.
-        targets = targets[:300]
+        targets = [r for r in candidates if r.get("_reservation_id") and (not r.get("_has_conditions") or not r.get("Séries"))]
+        # A consulta detalhada é limitada para evitar sobrecarregar a API; IDs únicos
+        # impedem chamadas repetidas para a mesma reserva.
+        unique_targets = {}
+        for row in targets:
+            unique_targets.setdefault(row["_reservation_id"], row)
+        targets = list(unique_targets.values())[:500]
+
         def load_one(item):
             return item, fetch_conditions(item["_reservation_id"], endpoint, email, token)
-        with ThreadPoolExecutor(max_workers=3) as pool:
+
+        with ThreadPoolExecutor(max_workers=4) as pool:
             futures = [pool.submit(load_one, item) for item in targets]
             for future in as_completed(futures):
                 try:
@@ -395,14 +464,9 @@ def build_rows(units: list[dict], sales: list[dict], include_conditions: bool, e
                             item[key] = new.get(key, item.get(key))
                         item["_has_conditions"] = True
                 except Exception:
-                    # Mantém a linha e os valores nativos se o endpoint secundário falhar.
                     continue
 
-    public_rows = []
-    for row in candidates:
-        public_rows.append({k: v for k, v in row.items() if not k.startswith("_")})
-    return public_rows
-
+    return [{key: value for key, value in row.items() if not key.startswith("_")} for row in candidates]
 
 def get_audit_data(include_conditions: bool, refresh: bool = False) -> dict:
     key = "detailed" if include_conditions else "basic"
