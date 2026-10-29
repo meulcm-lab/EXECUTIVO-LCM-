@@ -516,16 +516,50 @@ def health():
 def audit(
     include_conditions: bool = Query(False),
     refresh: bool = Query(False),
-    _user: str = Depends(check_dashboard_login),
 ):
+    """Serve os dados da planilha executiva versionada no repositório."""
+    from openpyxl import load_workbook
+
+    candidates = [
+        ROOT / "Planilha_Executivo_LCM_COM_RENDA_PERFIL_PUBLICO.xlsx",
+        ROOT / "Planilha_Executivo_LCM_COM_RENDA_PERFIL.xlsx",
+    ]
+    workbook_path = next((p for p in candidates if p.is_file()), None)
+    if workbook_path is None:
+        raise HTTPException(status_code=503, detail="Planilha executiva não encontrada no repositório.")
+    workbook = load_workbook(workbook_path, data_only=True, read_only=True)
     try:
-        return get_audit_data(include_conditions, refresh)
-    except HTTPException:
-        raise
-    except requests.RequestException as exc:
-        raise HTTPException(status_code=502, detail=f"Falha ao consultar o CV CRM: {exc.__class__.__name__}.") from exc
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Não foi possível montar a auditoria do CV CRM ({exc.__class__.__name__}).") from exc
+        sheet = workbook["Auditoria das Unidades"]
+        iterator = sheet.iter_rows(values_only=True)
+        header_row = next(iterator, None)
+        if not header_row:
+            raise HTTPException(status_code=503, detail="A aba Auditoria das Unidades está vazia.")
+        headers = [str(value).strip() if value is not None else "" for value in header_row]
+        rows = []
+        for values in iterator:
+            if not any(value is not None and str(value).strip() for value in values):
+                continue
+            item = {}
+            for idx, name in enumerate(headers):
+                if not name:
+                    continue
+                value = values[idx] if idx < len(values) else None
+                if isinstance(value, datetime):
+                    value = value.strftime("%d/%m/%Y")
+                elif hasattr(value, "item"):
+                    value = value.item()
+                item[name] = value
+            rows.append(item)
+        return {
+            "rows": rows,
+            "source": "Planilha executiva incorporada",
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "units_received": len(rows),
+            "reservations_received": 0,
+            "conditions_requested": False,
+        }
+    finally:
+        workbook.close()
 
 
 @app.get("/")
