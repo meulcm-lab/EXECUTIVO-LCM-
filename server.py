@@ -512,12 +512,8 @@ def health():
     return {"status": "ok", "service": "executivo-lcm-auditoria"}
 
 
-@app.get("/api/auditoria")
-def audit(
-    include_conditions: bool = Query(False),
-    refresh: bool = Query(False),
-):
-    """Serve os dados da planilha executiva versionada no repositório."""
+def load_audit_workbook():
+    """Lê a planilha executiva e devolve os registros normalizados."""
     from openpyxl import load_workbook
 
     candidates = [
@@ -526,14 +522,16 @@ def audit(
     ]
     workbook_path = next((p for p in candidates if p.is_file()), None)
     if workbook_path is None:
-        raise HTTPException(status_code=503, detail="Planilha executiva não encontrada no repositório.")
+        raise RuntimeError("Planilha executiva não encontrada no repositório.")
+
     workbook = load_workbook(workbook_path, data_only=True, read_only=True)
     try:
         sheet = workbook["Auditoria das Unidades"]
         iterator = sheet.iter_rows(values_only=True)
         header_row = next(iterator, None)
         if not header_row:
-            raise HTTPException(status_code=503, detail="A aba Auditoria das Unidades está vazia.")
+            raise RuntimeError("A aba Auditoria das Unidades está vazia.")
+
         headers = [str(value).strip() if value is not None else "" for value in header_row]
         rows = []
         for values in iterator:
@@ -550,16 +548,69 @@ def audit(
                     value = value.item()
                 item[name] = value
             rows.append(item)
-        return {
-            "rows": rows,
-            "source": "Planilha executiva incorporada",
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-            "units_received": len(rows),
-            "reservations_received": 0,
-            "conditions_requested": False,
-        }
+        return rows
     finally:
         workbook.close()
+
+
+_AUDIT_ROWS_CACHE: list[dict] | None = None
+_AUDIT_CACHE_MTIME: float | None = None
+
+
+@app.on_event("startup")
+def preload_audit_workbook():
+    """Pré-carrega a planilha na inicialização para evitar espera na primeira abertura."""
+    global _AUDIT_ROWS_CACHE, _AUDIT_CACHE_MTIME
+    candidates = [
+        ROOT / "Planilha_Executivo_LCM_COM_RENDA_PERFIL_PUBLICO.xlsx",
+        ROOT / "Planilha_Executivo_LCM_COM_RENDA_PERFIL.xlsx",
+    ]
+    workbook_path = next((p for p in candidates if p.is_file()), None)
+    if workbook_path is None:
+        return
+    try:
+        _AUDIT_ROWS_CACHE = load_audit_workbook()
+        _AUDIT_CACHE_MTIME = workbook_path.stat().st_mtime
+    except Exception:
+        # A rota retornará um erro claro caso a planilha não possa ser carregada.
+        _AUDIT_ROWS_CACHE = None
+        _AUDIT_CACHE_MTIME = None
+
+
+@app.get("/api/auditoria")
+def audit(
+    include_conditions: bool = Query(False),
+    refresh: bool = Query(False),
+):
+    """Serve os dados da planilha executiva em cache para responder mais rápido."""
+    global _AUDIT_ROWS_CACHE, _AUDIT_CACHE_MTIME
+    candidates = [
+        ROOT / "Planilha_Executivo_LCM_COM_RENDA_PERFIL_PUBLICO.xlsx",
+        ROOT / "Planilha_Executivo_LCM_COM_RENDA_PERFIL.xlsx",
+    ]
+    workbook_path = next((p for p in candidates if p.is_file()), None)
+    if workbook_path is None:
+        raise HTTPException(status_code=503, detail="Planilha executiva não encontrada no repositório.")
+
+    current_mtime = workbook_path.stat().st_mtime
+    if refresh or _AUDIT_ROWS_CACHE is None or _AUDIT_CACHE_MTIME != current_mtime:
+        try:
+            _AUDIT_ROWS_CACHE = load_audit_workbook()
+            _AUDIT_CACHE_MTIME = current_mtime
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return JSONResponse(
+        content={
+            "rows": _AUDIT_ROWS_CACHE,
+            "source": "Planilha executiva incorporada",
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "units_received": len(_AUDIT_ROWS_CACHE),
+            "reservations_received": 0,
+            "conditions_requested": False,
+        },
+        headers={"Cache-Control": "public, max-age=60"},
+    )
 
 
 @app.get("/")
