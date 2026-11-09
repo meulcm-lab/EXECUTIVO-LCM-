@@ -1,10 +1,32 @@
 <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Comercial LCM | Painel Executivo</title>
 <style>
 :root{--navy:#17365d;--blue:#2f75a8;--bg:#f3f6fa;--ink:#26364a;--muted:#6d7b8d;--line:#dce4ed;--white:#fff}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);font:14px Arial,sans-serif;color:var(--ink)}header{background:linear-gradient(110deg,#102b4e,#234d78);color:white;padding:24px 28px}header h1{margin:0 0 7px;font-size:25px}header p{margin:0;color:#d8e5f2}main{max-width:1700px;margin:auto;padding:20px}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font:14px Arial,sans-serif;color:var(--ink)}header{background:linear-gradient(110deg,#102b4e,#234d78);color:white;padding:24px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}header h1{margin:0 0 7px;font-size:25px}header p{margin:0;color:#d8e5f2}main{max-width:1700px;margin:auto;padding:20px}
 nav,.filters,.panel,.kpi{background:white;border:1px solid var(--line);border-radius:11px}nav{padding:12px;margin-bottom:16px;display:flex;gap:8px;flex-wrap:wrap}button{border:0;border-radius:7px;padding:11px 15px;background:#e8eef5;color:var(--navy);font-weight:bold;cursor:pointer}nav button.active,.primary{background:var(--navy);color:white}.view{display:none}.view.active{display:block}.filters{padding:14px;display:flex;gap:11px;align-items:end;flex-wrap:wrap;margin-bottom:15px}label{font-size:11px;color:var(--muted);font-weight:bold;display:flex;flex-direction:column;gap:6px;min-width:130px;flex:1}input,select{padding:10px;border:1px solid #ccd6e1;border-radius:6px;background:white;color:var(--ink);min-width:0}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:15px}.kpi{padding:16px}.kpi small{color:var(--muted);font-weight:bold;text-transform:uppercase;font-size:10px}.kpi strong{display:block;color:var(--navy);font-size:24px;margin:9px 0 4px}.kpi span,.muted{font-size:11px;color:var(--muted)}.panel{padding:16px;margin-bottom:15px}.panel h2{font-size:15px;margin:0 0 12px;color:var(--navy)}.tablewrap{overflow:auto;max-height:540px;border:1px solid var(--line);border-radius:7px}table{border-collapse:collapse;width:max-content;min-width:100%;table-layout:auto;font-size:12px;white-space:nowrap}th{position:sticky;top:0;background:var(--navy);color:white;text-align:left;padding:10px}td{padding:9px;border-bottom:1px solid #e8edf3}tbody tr:nth-child(even){background:#f7f9fc}.barrow{display:grid;grid-template-columns:minmax(150px,2fr) 4fr 70px;gap:10px;align-items:center;margin:9px 0;font-size:12px}.bar{height:12px;background:#e8eef5;border-radius:10px;overflow:hidden}.bar i{display:block;height:100%;background:var(--blue)}.sectiontitle{font-weight:bold;color:var(--navy);margin:18px 0 9px}.charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.empty{padding:25px;text-align:center;color:var(--muted)}.hint{line-height:1.5}
 @media(max-width:900px){.cards{grid-template-columns:repeat(2,1fr)}.charts{grid-template-columns:1fr}}@media(max-width:560px){main{padding:11px}.cards{grid-template-columns:1fr}header{padding:18px}.barrow{grid-template-columns:1fr 2fr 45px}}
-</style></head><body><header><h1>COMERCIAL LCM</h1><p>Relatório executivo comercial · Base atualizada em 09/11/2026</p></header><main>
+
+.pdf-button{background:#fff;color:var(--navy);border:1px solid rgba(255,255,255,.5);white-space:nowrap}
+@media print{
+ @page{size:A4 landscape;margin:10mm}
+ body{background:#fff!important;color:#111;font-size:10px}
+ header{background:#fff!important;color:#17365d!important;padding:0 0 10px;border-bottom:2px solid #17365d}
+ header p{color:#555!important}
+ .pdf-button,nav button,.filters button{display:none!important}
+ nav{display:none!important}
+ main{max-width:none;margin:0;padding:10px 0}
+ .view,.view.active{display:block!important;page-break-after:always;break-after:page}
+ .view:last-of-type{page-break-after:auto;break-after:auto}
+ .filters{padding:8px;gap:7px;box-shadow:none}
+ .panel,.kpi,.filters{break-inside:avoid;box-shadow:none}
+ .tablewrap{max-height:none!important;overflow:visible!important}
+ table{width:100%!important;min-width:0!important;white-space:normal!important;font-size:8px!important}
+ th,td{padding:4px!important;white-space:normal!important;overflow-wrap:anywhere}
+ th{position:static!important}
+ .cards{grid-template-columns:repeat(4,minmax(0,1fr))}
+ .charts{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .barrow{break-inside:avoid}
+}
+</style></head><body><header><div><h1>COMERCIAL LCM</h1><p>Relatório executivo comercial · Base atualizada em 09/11/2026</p></div><button class="pdf-button" type="button" onclick="window.print()">Baixar PDF</button></header><main>
 <nav><button class="active" data-view="exec">Visão executiva</button><button data-view="audit">Auditoria + Estoque</button><button data-view="audience">Público-alvo</button></nav>
 <section id="exec" class="view active">
 <div class="filters"><label>Data inicial da venda<input type="date" id="execFrom"></label><label>Data final da venda<input type="date" id="execTo"></label><label>Empreendimento<select id="execProject"><option value="">Todos os empreendimentos</option></select></label><button id="execClear">Limpar filtros</button></div>
