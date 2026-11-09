@@ -107,6 +107,53 @@ tbody tr:nth-child(even){background:#f8faf8}
 @media(max-width:560px){.brand{gap:12px}.brand-logo{width:112px}.brand-copy{padding-left:12px}.site-header h1{font-size:17px}.site-header p{font-size:10px}.site-header{padding:12px}}
 @media print{.site-header{box-shadow:none}.brand-logo{width:125px}}
 
+
+/* Ajuste final de impressão: layout próprio para PDF */
+@media print{
+ @page{size:A4 landscape;margin:6mm}
+ html,body{width:100%!important;height:auto!important;min-height:0!important;margin:0!important;padding:0!important;overflow:visible!important}
+ body{font-family:Arial,Helvetica,sans-serif!important;font-size:7px!important;line-height:1.15!important;background:#fff!important}
+ .site-header{display:flex!important;position:static!important;width:100%!important;padding:0 0 4px!important;margin:0 0 5px!important;border-bottom:1px solid #cfd8cf!important;box-shadow:none!important}
+ .site-header h1{font-size:14px!important;margin:0 0 1px!important}
+ .site-header p{font-size:7px!important;margin:0!important}
+ .pdf-button,nav,.filters button{display:none!important}
+ main{display:block!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important}
+ .view{display:none!important;position:static!important;width:100%!important;margin:0!important;padding:0!important}
+ body.print-view-exec #exec,body.print-view-audit #audit,body.print-view-audience #audience{display:block!important}
+ body.print-view-audit #audit{display:flex!important;flex-direction:column!important;gap:5px!important;align-items:stretch!important}
+ body.print-view-audit #audit>*{position:static!important;float:none!important;grid-column:auto!important;grid-row:auto!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important}
+ body.print-view-audit #audit>.audit-kpi-row{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:5px!important}
+ body.print-view-audit #audit>.audit-kpi-row .kpi{min-height:0!important;height:auto!important;padding:5px!important;margin:0!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:1px!important;box-shadow:none!important;break-inside:avoid!important}
+ body.print-view-audit #audit>.audit-kpi-row .kpi small{font-size:7px!important;text-align:center!important}
+ body.print-view-audit #audit>.audit-kpi-row .kpi strong{font-size:13px!important;margin:1px 0!important}
+ body.print-view-audit #audit>.audit-kpi-row .kpi span{font-size:6px!important;text-align:center!important}
+ body.print-view-audit #audit>.audit-filters{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:4px 6px!important;padding:6px!important;border:1px solid #dfe5df!important;border-radius:5px!important;box-shadow:none!important}
+ body.print-view-audit #audit>.audit-filters label{display:flex!important;flex-direction:column!important;gap:2px!important;min-width:0!important;font-size:6px!important;font-weight:600!important}
+ body.print-view-audit #audit>.audit-filters input,body.print-view-audit #audit>.audit-filters select{display:block!important;width:100%!important;min-width:0!important;height:19px!important;min-height:19px!important;padding:2px 4px!important;font-size:6px!important;border:1px solid #d5ddd5!important;border-radius:3px!important;background:#fff!important;color:#333!important}
+ body.print-view-audit #audit>.audit-table-panel,body.print-view-audit #audit>.analytics-panel{display:block!important;padding:6px!important;border:1px solid #dfe5df!important;border-radius:5px!important;box-shadow:none!important;break-inside:auto!important;page-break-inside:auto!important}
+ body.print-view-audit #audit .panel h2{font-size:8px!important;margin:0 0 4px!important}
+ body.print-view-audit #audit .tablewrap{display:block!important;width:100%!important;height:auto!important;max-height:none!important;overflow:visible!important}
+ body.print-view-audit #audit table{display:table!important;width:100%!important;min-width:0!important;table-layout:fixed!important;border-collapse:collapse!important;font-size:5.5px!important}
+ body.print-view-audit #audit th,body.print-view-audit #audit td{padding:2px 2px!important;font-size:5.5px!important;line-height:1.1!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:normal!important}
+ body.print-view-audit #audit th{position:static!important}
+ body.print-view-audit #audit tr{break-inside:avoid!important;page-break-inside:avoid!important}
+ body.print-view-audit #audit .sectiontitle{font-size:7px!important;margin:4px 0 2px!important}
+ body.print-view-audit #audit .muted,body.print-view-audit #audit .hint{font-size:5.5px!important;margin:3px 0!important}
+ body.print-view-audit #audit .analytics-grid{display:grid!important;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr)!important;gap:5px!important}
+ body.print-view-audit #audit .analytics-left,body.print-view-audit #audit .analytics-right{padding:5px!important;min-width:0!important}
+ body.print-view-audit #audit .analytics-metrics{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:4px!important;margin-bottom:4px!important}
+ body.print-view-audit #audit .mini-metric{padding:4px!important}
+ body.print-view-audit #audit .mini-metric span,body.print-view-audit #audit .chart-title{font-size:6px!important}
+ body.print-view-audit #audit .mini-metric strong{font-size:11px!important}
+ body.print-view-audit #audit .classcv-wrap{max-height:none!important}
+ body.print-view-audit #audit .barrow{margin:2px 0!important;font-size:5.5px!important;break-inside:avoid!important}
+ body.print-view-audit #audit .bar{height:5px!important}
+ body.print-view-exec .filters,body.print-view-audience .filters{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:4px!important;padding:6px!important;margin:0 0 5px!important;box-shadow:none!important}
+ body.print-view-exec .filters label,body.print-view-audience .filters label{font-size:6px!important}
+ body.print-view-exec .filters input,body.print-view-exec .filters select,body.print-view-audience .filters input,body.print-view-audience .filters select{height:19px!important;padding:2px 4px!important;font-size:6px!important}
+ .panel,.kpi{box-shadow:none!important}
+ .barrow{break-inside:avoid!important}
+}
 </style></head><body><header class="site-header"><div class="brand"><div class="brand-copy"><h1>COMERCIAL LCM</h1><p>Relatório executivo comercial · Auditoria e desempenho comercial</p></div></div><button class="pdf-button" type="button" onclick="printActiveReport()">Baixar PDF</button></header><main>
 <nav><button class="active" data-view="exec">Visão executiva</button><button data-view="audit">Auditoria Financeira</button><button data-view="audience">Público-alvo</button></nav>
 <section id="exec" class="view active">
