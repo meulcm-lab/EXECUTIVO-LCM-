@@ -7,25 +7,46 @@ nav,.filters,.panel,.kpi{background:white;border:1px solid var(--line);border-ra
 
 .pdf-button{background:#fff;color:var(--navy);border:1px solid rgba(255,255,255,.5);white-space:nowrap}
 @media print{
- @page{size:A4 landscape;margin:10mm}
- body{background:#fff!important;color:#111;font-size:10px}
- header{background:#fff!important;color:#17365d!important;padding:0 0 10px;border-bottom:2px solid #17365d}
- header p{color:#555!important}
- .pdf-button,nav button,.filters button{display:none!important}
- nav{display:none!important}
- main{max-width:none;margin:0;padding:10px 0}
+ @page{size:A4 landscape;margin:7mm}
+ *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+ body{background:#fff!important;color:#202520;font-size:7.5px!important;line-height:1.2}
+ .site-header{background:#fff!important;color:#303438!important;padding:0 0 5px!important;border-bottom:1px solid #dfe5df;box-shadow:none!important}
+ .site-header h1{font-size:15px!important;margin:0 0 2px!important}
+ .site-header p{font-size:8px!important}
+ .pdf-button,nav, .filters button{display:none!important}
+ main{max-width:none!important;width:100%!important;margin:0!important;padding:5px 0 0!important}
  .view{display:none!important}
  body.print-view-exec #exec,body.print-view-audit #audit,body.print-view-audience #audience{display:block!important;page-break-after:auto!important;break-after:auto!important}
- .view.active{page-break-after:auto;break-after:auto}
- .filters{padding:8px;gap:7px;box-shadow:none}
- .panel,.kpi,.filters{break-inside:avoid;box-shadow:none}
- .tablewrap{max-height:none!important;overflow:visible!important}
- table{width:100%!important;min-width:0!important;white-space:normal!important;font-size:8px!important}
- th,td{padding:4px!important;white-space:normal!important;overflow-wrap:anywhere}
- th{position:static!important}
- .cards{grid-template-columns:repeat(4,minmax(0,1fr))}
- .charts{grid-template-columns:repeat(2,minmax(0,1fr))}
- .barrow{break-inside:avoid}
+ .view.active{page-break-after:auto!important;break-after:auto!important}
+ .filters{display:none!important}
+ .panel,.kpi{box-shadow:none!important;border:1px solid #e0e5e0!important;border-radius:5px!important}
+ .panel{padding:7px!important;margin:5px 0!important;break-inside:auto!important;page-break-inside:auto!important}
+ .panel h2{font-size:9px!important;margin:0 0 5px!important}
+ #audit{display:block!important;width:100%!important}
+ #audit>.audit-kpi-row{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:5px!important;margin:0 0 5px!important}
+ #audit>.audit-kpi-row .kpi{min-height:0!important;padding:6px 4px!important;gap:1px!important;break-inside:avoid!important}
+ #audit>.audit-kpi-row .kpi small{font-size:7px!important}
+ #audit>.audit-kpi-row .kpi strong{font-size:14px!important;margin:2px 0!important}
+ #audit>.audit-kpi-row .kpi span{font-size:6px!important}
+ .audit-table-panel,.analytics-panel{width:100%!important;min-width:0!important;break-inside:auto!important;page-break-inside:auto!important}
+ .tablewrap{max-height:none!important;height:auto!important;overflow:visible!important}
+ table{width:100%!important;min-width:0!important;table-layout:fixed!important;border-collapse:collapse!important;font-size:6px!important}
+ th,td{padding:2px 2.5px!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:normal!important;line-height:1.12!important}
+ th{position:static!important;font-size:6px!important}
+ tr{break-inside:avoid!important;page-break-inside:avoid!important}
+ .sectiontitle{font-size:8px!important;margin:5px 0 3px!important}
+ .muted,.hint{font-size:6px!important;margin:3px 0!important}
+ .cards{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:5px!important}
+ .charts{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:5px!important}
+ .analytics-grid{grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr)!important;gap:6px!important}
+ .analytics-left,.analytics-right{padding:5px!important;border:1px solid #e0e5e0!important}
+ .analytics-metrics{gap:5px!important;margin-bottom:5px!important}
+ .mini-metric{padding:4px 6px!important}
+ .mini-metric span,.chart-title{font-size:7px!important}
+ .mini-metric strong{font-size:12px!important}
+ .classcv-wrap{max-height:none!important}
+ .barrow{break-inside:avoid!important;margin:3px 0!important;font-size:6px!important}
+ .bar{height:5px!important}
 }
 
 /* Identidade visual LCM */
