@@ -15,7 +15,8 @@ nav,.filters,.panel,.kpi{background:white;border:1px solid var(--line);border-ra
  nav{display:none!important}
  main{max-width:none;margin:0;padding:10px 0}
  .view{display:none!important}
- .view.active{display:block!important;page-break-after:auto;break-after:auto}
+ body.print-view-exec #exec,body.print-view-audit #audit,body.print-view-audience #audience{display:block!important;page-break-after:auto!important;break-after:auto!important}
+ .view.active{page-break-after:auto;break-after:auto}
  .filters{padding:8px;gap:7px;box-shadow:none}
  .panel,.kpi,.filters{break-inside:avoid;box-shadow:none}
  .tablewrap{max-height:none!important;overflow:visible!important}
@@ -26,7 +27,7 @@ nav,.filters,.panel,.kpi{background:white;border:1px solid var(--line);border-ra
  .charts{grid-template-columns:repeat(2,minmax(0,1fr))}
  .barrow{break-inside:avoid}
 }
-</style></head><body><header><div><h1>COMERCIAL LCM</h1><p>Relatório executivo comercial · Base atualizada em 09/11/2026</p></div><button class="pdf-button" type="button" onclick="window.print()">Baixar PDF</button></header><main>
+</style></head><body><header><div><h1>COMERCIAL LCM</h1><p>Relatório executivo comercial · Base atualizada em 09/11/2026</p></div><button class="pdf-button" type="button" onclick="printActiveReport()">Baixar PDF</button></header><main>
 <nav><button class="active" data-view="exec">Visão executiva</button><button data-view="audit">Auditoria + Estoque</button><button data-view="audience">Público-alvo</button></nav>
 <section id="exec" class="view active">
 <div class="filters"><label>Data inicial da venda<input type="date" id="execFrom"></label><label>Data final da venda<input type="date" id="execTo"></label><label>Empreendimento<select id="execProject"><option value="">Todos os empreendimentos</option></select></label><button id="execClear">Limpar filtros</button></div>
@@ -72,5 +73,13 @@ function renderStock(){let p=document.getElementById('stockProject').value,s=doc
 function renderAudience(){let p=document.getElementById('audienceProject').value||'Todos os empreendimentos',obj=AUD[p]||AUD['Todos os empreendimentos'];let total=(obj['Faixa etária']||[]).reduce((a,x)=>a+x.count,0);document.getElementById('audienceKpis').innerHTML=[['Perfis analisados',num(total),'Contagem agregada'],['Empreendimento',p,'Filtro aplicado']].map(x=>`<div class="kpi"><small>${x[0]}</small><strong>${x[1]}</strong><span>${x[2]}</span></div>`).join('');document.getElementById('audienceCharts').innerHTML=Object.entries(obj).map(([label,items])=>`<div class="panel"><h2>${esc(label)}</h2>${bars(items,'label','count')}</div>`).join('')}
 document.getElementById('audienceProject').addEventListener('change',renderAudience);
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button,.view').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById(b.dataset.view).classList.add('active')});
+function printActiveReport(){
+ const selected=document.querySelector('nav button.active[data-view]');
+ const view=selected?.dataset.view||document.querySelector('.view.active')?.id||'exec';
+ document.body.classList.remove('print-view-exec','print-view-audit','print-view-audience');
+ document.body.classList.add('print-view-'+view);
+ window.print();
+}
+window.addEventListener('afterprint',()=>document.body.classList.remove('print-view-exec','print-view-audit','print-view-audience'));
 renderExec();renderAudit();renderStock();renderAudience();
 </script></body></html>
